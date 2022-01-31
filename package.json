@@ -1,0 +1,15 @@
+{
+  "name": "so-scraper",
+  "version": "1.0.0",
+  "description": "stackoverflow recursive scraper",
+  "main": "index.js",
+  "author": "aditya-mitra <55396651+aditya-mitra@users.noreply.github.com>",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "mongoose": "^6.1.9",
+    "superagent": "^7.1.1",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.5"
+  }
+}
