@@ -20,8 +20,6 @@ yarn start
 
 ## Demo
 
-![gif_play](https://drive.google.com/uc?export=view&id=1Pp2DFQLN2kuVlZCp0QVVoVLMSoOX8Jw2)
-
 **You can also view the full video [here](https://drive.google.com/file/d/1xi24i8pTFnnbqGnr4udEuOf6VfnUldLm/view?usp=sharing)**
 
 ## Tech Stack
