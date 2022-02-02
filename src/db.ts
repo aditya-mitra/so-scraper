@@ -13,7 +13,6 @@ export async function connectToDB(): Promise<void> {
 		const uri = process.env.ATLAS_URI;
 		if (!uri) {
 			spinner.error({ text: 'ALTAS_URI not found in environment' });
-
 			return reject();
 		}
 
@@ -49,26 +48,13 @@ const ScrapeSchema = new mongoose.Schema({
 
 export const Scrape = mongoose.model<IScrape>('Scrape', ScrapeSchema);
 
-export async function updateLatestScrape(
-	id: mongoose.Types.ObjectId,
-	answers: number,
-	upvotes: number
-) {
-	await Scrape.updateOne(
-		{ _id: id },
-		{
-			// put the latest change of the answers and upvotes
-			$set: {
-				answers,
-				upvotes,
-			},
-			$inc: {
-				encountered: 1,
-			},
-		}
-	);
-}
+export async function bulkIncrementEncountered(urls: string[]) {
+	const bulkWriteOps = urls.map((url) => ({
+		updateOne: {
+			filter: { url },
+			update: { $inc: { encountered: 1 } },
+		},
+	}));
 
-export async function incrementedEncountered(url: string) {
-	await Scrape.updateOne({ url }, { $inc: { encountered: 1 } });
+	await Scrape.bulkWrite(bulkWriteOps).catch((err) => console.log(err));
 }

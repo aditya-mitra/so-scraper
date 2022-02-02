@@ -1,14 +1,9 @@
 import superAgent from 'superagent';
 import cheerio from 'cheerio';
-import { createSpinner } from 'nanospinner';
 import yesno from 'yesno';
+import { createSpinner } from 'nanospinner';
 
-import {
-	connectToDB,
-	incrementedEncountered,
-	Scrape,
-	updateLatestScrape,
-} from './db';
+import { connectToDB, bulkIncrementEncountered, Scrape } from './db';
 import { createCSV } from './csv';
 
 const BASE_URL = 'https://stackoverflow.com';
@@ -26,13 +21,8 @@ async function getDetailsFromPage(pageNo: number): Promise<IPageDetail[]> {
 		.query({ page: pageNo, pagesize: PAGE_SIZE })
 		.then((response) => response.text)
 		.catch((err: superAgent.ResponseError) => {
-			console.log('encountered error ', err.message);
-			return null;
+			throw new Error('during getDetailsFromPage, ' + err.message);
 		});
-
-	if (!dom) {
-		return []; // throw error here instead of return
-	}
 
 	const $ = cheerio.load(dom);
 	const pageDetails: IPageDetail[] = [];
@@ -54,23 +44,6 @@ async function getDetailsFromPage(pageNo: number): Promise<IPageDetail[]> {
 	return pageDetails;
 }
 
-async function storeDetailsInDB({ url, answers, upvotes }: IPageDetail) {
-	const foundScrape = await Scrape.findOne(
-		{ url },
-		{ _id: 1 },
-		{ lean: true }
-	);
-
-	if (!foundScrape) {
-		const newScrape = new Scrape({ url, answers, upvotes });
-		await newScrape.save().catch(async () => {
-			await incrementedEncountered(url);
-		});
-	} else {
-		await updateLatestScrape(foundScrape._id, answers, upvotes);
-	}
-}
-
 async function main() {
 	await connectToDB();
 
@@ -79,15 +52,16 @@ async function main() {
 			'Do you want to delete previous entries in the database? (y/n)',
 	});
 
+	const spinner = createSpinner();
 	if (deleteScrapes) {
+		spinner.start({ text: 'deleting scrape entries' });
 		await Scrape.deleteMany({});
+		spinner.success({ text: 'successfully deleted scrape entries' });
 	}
 
-	const spinner = createSpinner();
+	let i = 0;
 
-	for (let i = 0; i <= 1; ++i) {
-		// change to while(true)
-
+	while (true) {
 		const pagesDetailPromises: Promise<IPageDetail[]>[] = [];
 
 		for (let pageNo = i * 5 + 1; pageNo <= (i + 1) * 5; ++pageNo) {
@@ -103,30 +77,38 @@ async function main() {
 			text: `Successfully scraped pages ${i * 5 + 1} to ${(i + 1) * 5}`,
 		});
 
-		const storeDetailsPromises = ([] as IPageDetail[])
-			.concat(...pagesDetails)
-			.map((pageDetails) => storeDetailsInDB(pageDetails));
+		const storeDetailsPromises = ([] as IPageDetail[]).concat(
+			...pagesDetails
+		);
 
 		spinner.start({
 			text: `Storing scraped details into database`,
 		});
 
-		await Promise.all(storeDetailsPromises);
+		await Scrape.insertMany(storeDetailsPromises, { ordered: false }).catch(
+			async (err) => {
+				const duplicateUrls: string[] =
+					err.result.result.writeErrors.map(
+						(writeError: any) => writeError.err.op.url
+					);
+
+				await bulkIncrementEncountered(duplicateUrls);
+			}
+		);
 
 		spinner.success({
 			text: `Successfully stored scraped details into database`,
 			mark: '💽',
 		});
+
+		++i;
 	}
-
-	await createCSV();
-
-	process.exit(0);
 }
 
-process.on('SIGINT', async () => {
-	await createCSV();
-	process.exit(0);
+process.on('SIGINT', () => {
+	createCSV().then(() => {
+		process.exit(0);
+	});
 });
 
 main();
