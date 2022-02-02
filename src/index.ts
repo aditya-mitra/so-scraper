@@ -77,7 +77,7 @@ async function main() {
 			text: `Successfully scraped pages ${i * 5 + 1} to ${(i + 1) * 5}`,
 		});
 
-		const storeDetailsPromises = ([] as IPageDetail[]).concat(
+		const pageDetails = ([] as IPageDetail[]).concat(
 			...pagesDetails
 		);
 
@@ -85,7 +85,7 @@ async function main() {
 			text: `Storing scraped details into database`,
 		});
 
-		await Scrape.insertMany(storeDetailsPromises, { ordered: false }).catch(
+		await Scrape.insertMany(pageDetails, { ordered: false }).catch(
 			async (err) => {
 				const duplicateUrls: string[] =
 					err.result.result.writeErrors.map(
