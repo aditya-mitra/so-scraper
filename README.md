@@ -20,7 +20,7 @@ yarn start
 
 ## Demo
 
-![gif__play](https://drive.google.com/uc?export=view&id=1Pp2DFQLN2kuVlZCp0QVVoVLMSoOX8Jw2)
+![gif__play](https://drive.google.com/uc?export=view&id=1ZehVEPxVtug-I6yv8dfdkMFgsgZ29m8O)
 
 **You can also view the full video [here](https://drive.google.com/file/d/1xi24i8pTFnnbqGnr4udEuOf6VfnUldLm/view?usp=sharing)**
 
