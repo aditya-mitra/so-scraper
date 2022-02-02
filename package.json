@@ -22,6 +22,7 @@
 		"prettier": "^2.5.1",
 		"superagent": "^7.1.1",
 		"ts-node": "^10.4.0",
-		"typescript": "^4.5.5"
+		"typescript": "^4.5.5",
+		"yesno": "^0.3.1"
 	}
 }

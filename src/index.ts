@@ -1,13 +1,13 @@
 import superAgent from 'superagent';
 import cheerio from 'cheerio';
 import { createSpinner } from 'nanospinner';
+import yesno from 'yesno';
 
 import {
 	connectToDB,
 	incrementedEncountered,
 	Scrape,
 	updateLatestScrape,
-	IScrape,
 } from './db';
 import { createCSV } from './csv';
 
@@ -73,7 +73,15 @@ async function storeDetailsInDB({ url, answers, upvotes }: IPageDetail) {
 
 async function main() {
 	await connectToDB();
-	await Scrape.deleteMany({});
+
+	const deleteScrapes = await yesno({
+		question:
+			'Do you want to delete previous entries in the database? (y/n)',
+	});
+
+	if (deleteScrapes) {
+		await Scrape.deleteMany({});
+	}
 
 	const spinner = createSpinner();
 
@@ -101,24 +109,24 @@ async function main() {
 
 		spinner.start({
 			text: `Storing scraped details into database`,
-			
 		});
 
 		await Promise.all(storeDetailsPromises);
 
 		spinner.success({
 			text: `Successfully stored scraped details into database`,
-			mark: '💽'
+			mark: '💽',
 		});
 	}
 
-	const scrapes: IScrape[] = await Scrape.find({})
-		.select(['-_id', '-__v'])
-		.lean();
-
-	createCSV(scrapes);
+	await createCSV();
 
 	process.exit(0);
 }
+
+process.on('SIGINT', async () => {
+	await createCSV();
+	process.exit(0);
+});
 
 main();
