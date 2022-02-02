@@ -1,16 +1,24 @@
 import superAgent from 'superagent';
 import cheerio from 'cheerio';
+import mongoose from 'mongoose';
+
+import {
+	connectToDB,
+	incrementedEncountered,
+	Scrape,
+	updateLatestScrape,
+} from './db';
 
 const BASE_URL = 'https://stackoverflow.com';
 const PAGE_SIZE = 50;
 
-interface PageDetail {
+interface IPageDetail {
 	url: string;
 	upvotes: number;
 	answers: number;
 }
 
-async function getDetailsFromPage(pageNo: number): Promise<PageDetail[]> {
+async function getDetailsFromPage(pageNo: number): Promise<IPageDetail[]> {
 	const dom = await superAgent
 		.get(`${BASE_URL}/questions`)
 		.query({ page: pageNo, pagesize: PAGE_SIZE })
@@ -25,7 +33,7 @@ async function getDetailsFromPage(pageNo: number): Promise<PageDetail[]> {
 	}
 
 	const $ = cheerio.load(dom);
-	const pageDetails: PageDetail[] = [];
+	const pageDetails: IPageDetail[] = [];
 
 	$('.question-summary').each((_i, el) => {
 		const url = $(el).find('.summary h3 a').attr('href') ?? '';
@@ -35,7 +43,7 @@ async function getDetailsFromPage(pageNo: number): Promise<PageDetail[]> {
 		const answers = parseInt($(el).find('.stats .status strong').text());
 
 		pageDetails.push({
-			url,
+			url: BASE_URL + url,
 			upvotes,
 			answers,
 		});
@@ -44,33 +52,54 @@ async function getDetailsFromPage(pageNo: number): Promise<PageDetail[]> {
 	return pageDetails;
 }
 
-async function storeDetailsInDatabase(pageDetails: PageDetail[]) {}
+async function storeDetailsInDB({ url, answers, upvotes }: IPageDetail) {
+	const foundScrape = await Scrape.findOne(
+		{ url },
+		{ _id: 1 },
+		{ lean: true }
+	);
 
-async function main() {
-	for (let i = 0; i <= 1; ++i) {
-		// change to while(true)
-
-		const pageDetailPromises: Promise<PageDetail[]>[] = [];
-
-		for (let pageNo = i * 5 + 1; pageNo <= (i + 1) * 5; ++pageNo) {
-			pageDetailPromises.push(getDetailsFromPage(pageNo));
-		}
-
-		const pageDetails = await Promise.all(pageDetailPromises);
-		console.log(pageDetails);
+	if (!foundScrape) {
+		const newScrape = new Scrape({ url, answers, upvotes });
+		await newScrape.save().catch(async () => {
+			await incrementedEncountered(url);
+		});
+	} else {
+		await updateLatestScrape(foundScrape._id, answers, upvotes);
 	}
 }
 
-main();
-
-/*async function addUrlsToDatabase(urls: string[]) {
-	for (let i = 0; i < urls.length; ++i) {
-		const group: Promise<void>[] = [];
-		for (let j = 0; j < urls.length && j < 5; ++j) {
-			// concurrently scrape the pages in groups of 5
-			group.push(getDataFromUrl(urls[i + j]));
+async function main() {
+	await connectToDB();
+	await Scrape.deleteMany({});
+	
+	console.log('before count = ', await Scrape.count());
+	
+	for (let i = 0; i <= 1; ++i) {
+		// change to while(true)
+		
+		const pagesDetailPromises: Promise<IPageDetail[]>[] = [];
+		
+		for (let pageNo = i * 5 + 1; pageNo <= (i + 1) * 5; ++pageNo) {
+			pagesDetailPromises.push(getDetailsFromPage(pageNo));
 		}
-
-		await Promise.all(group);
+		
+		const pagesDetails = await Promise.all(pagesDetailPromises);
+		const storeDetailsPromises = ([] as IPageDetail[])
+		.concat(...pagesDetails)
+		.map((pageDetails) => storeDetailsInDB(pageDetails));
+		
+		console.log('sracped count = ', storeDetailsPromises.length);
+		
+		await Promise.all(storeDetailsPromises);
+		
+		console.log('Scrape Model count = ', await Scrape.count());
 	}
-}*/
+	
+	const docs = await Scrape.find({ encountered: { $gte: 1 } }).count()
+	console.log('encountered=', docs);
+	
+	process.exit(0);
+}
+
+main();
