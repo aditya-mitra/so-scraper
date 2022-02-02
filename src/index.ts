@@ -1,13 +1,14 @@
 import superAgent from 'superagent';
 import cheerio from 'cheerio';
-import mongoose from 'mongoose';
 
 import {
 	connectToDB,
 	incrementedEncountered,
 	Scrape,
 	updateLatestScrape,
+	IScrape,
 } from './db';
+import { createCSV } from './csv';
 
 const BASE_URL = 'https://stackoverflow.com';
 const PAGE_SIZE = 50;
@@ -72,33 +73,36 @@ async function storeDetailsInDB({ url, answers, upvotes }: IPageDetail) {
 async function main() {
 	await connectToDB();
 	await Scrape.deleteMany({});
-	
+
 	console.log('before count = ', await Scrape.count());
-	
+
 	for (let i = 0; i <= 1; ++i) {
 		// change to while(true)
-		
+
 		const pagesDetailPromises: Promise<IPageDetail[]>[] = [];
-		
+
 		for (let pageNo = i * 5 + 1; pageNo <= (i + 1) * 5; ++pageNo) {
 			pagesDetailPromises.push(getDetailsFromPage(pageNo));
 		}
-		
+
 		const pagesDetails = await Promise.all(pagesDetailPromises);
 		const storeDetailsPromises = ([] as IPageDetail[])
-		.concat(...pagesDetails)
-		.map((pageDetails) => storeDetailsInDB(pageDetails));
-		
+			.concat(...pagesDetails)
+			.map((pageDetails) => storeDetailsInDB(pageDetails));
+
 		console.log('sracped count = ', storeDetailsPromises.length);
-		
+
 		await Promise.all(storeDetailsPromises);
-		
+
 		console.log('Scrape Model count = ', await Scrape.count());
 	}
-	
-	const docs = await Scrape.find({ encountered: { $gte: 1 } }).count()
-	console.log('encountered=', docs);
-	
+
+	const scrapes: IScrape[] = await Scrape.find({})
+		.select(['-_id', '-__v'])
+		.lean();
+
+	createCSV(scrapes);
+
 	process.exit(0);
 }
 

@@ -26,7 +26,7 @@ export async function connectToDB(): Promise<void> {
 	});
 }
 
-interface ISrape {
+export interface IScrape {
 	url: String;
 	enountered: Number;
 	upvotes: Number;
@@ -40,7 +40,7 @@ const ScrapeSchema = new mongoose.Schema({
 	answers: { type: Number, required: true },
 });
 
-export const Scrape = mongoose.model<ISrape>('Scrape', ScrapeSchema);
+export const Scrape = mongoose.model<IScrape>('Scrape', ScrapeSchema);
 
 export async function updateLatestScrape(
 	id: mongoose.Types.ObjectId,
