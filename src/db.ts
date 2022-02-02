@@ -1,26 +1,33 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { createSpinner } from 'nanospinner';
 
 dotenv.config();
 
 export async function connectToDB(): Promise<void> {
 	return new Promise((resolve, reject) => {
-		console.log('attempting connection to database');
+		const spinner = createSpinner();
+
+		spinner.start({ text: 'attempting connection to database' });
 
 		const uri = process.env.ATLAS_URI;
 		if (!uri) {
-			console.log('MONGO ALTAS URI not found');
+			spinner.error({ text: 'ALTAS_URI not found in environment' });
+
 			return reject();
 		}
 
 		mongoose
 			.connect(uri)
 			.then(() => {
-				console.log('connection to database successful!');
+				spinner.success({
+					text: 'connection to database successful!',
+					mark: '🪢',
+				});
 				resolve();
 			})
 			.catch((e) => {
-				console.log(e?.message);
+				spinner.error({ text: e?.message });
 				reject();
 			});
 	});
@@ -28,7 +35,7 @@ export async function connectToDB(): Promise<void> {
 
 export interface IScrape {
 	url: String;
-	enountered: Number;
+	encountered: Number;
 	upvotes: Number;
 	answers: Number;
 }

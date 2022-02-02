@@ -1,5 +1,6 @@
 import superAgent from 'superagent';
 import cheerio from 'cheerio';
+import { createSpinner } from 'nanospinner';
 
 import {
 	connectToDB,
@@ -74,7 +75,7 @@ async function main() {
 	await connectToDB();
 	await Scrape.deleteMany({});
 
-	console.log('before count = ', await Scrape.count());
+	const spinner = createSpinner();
 
 	for (let i = 0; i <= 1; ++i) {
 		// change to while(true)
@@ -85,16 +86,30 @@ async function main() {
 			pagesDetailPromises.push(getDetailsFromPage(pageNo));
 		}
 
+		spinner.start({
+			text: `Scraping pages ${i * 5 + 1} to ${(i + 1) * 5}`,
+		});
+
 		const pagesDetails = await Promise.all(pagesDetailPromises);
+		spinner.success({
+			text: `Successfully scraped pages ${i * 5 + 1} to ${(i + 1) * 5}`,
+		});
+
 		const storeDetailsPromises = ([] as IPageDetail[])
 			.concat(...pagesDetails)
 			.map((pageDetails) => storeDetailsInDB(pageDetails));
 
-		console.log('sracped count = ', storeDetailsPromises.length);
+		spinner.start({
+			text: `Storing scraped details into database`,
+			
+		});
 
 		await Promise.all(storeDetailsPromises);
 
-		console.log('Scrape Model count = ', await Scrape.count());
+		spinner.success({
+			text: `Successfully stored scraped details into database`,
+			mark: '💽'
+		});
 	}
 
 	const scrapes: IScrape[] = await Scrape.find({})

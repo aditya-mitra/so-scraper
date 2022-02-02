@@ -18,6 +18,7 @@
 		"dotenv": "^15.0.0",
 		"json2csv": "^5.0.6",
 		"mongoose": "^6.1.10",
+		"nanospinner": "^1.0.0",
 		"prettier": "^2.5.1",
 		"superagent": "^7.1.1",
 		"ts-node": "^10.4.0",
